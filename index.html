@@ -23,7 +23,7 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
 const CONFIG_URL = "https://api.jsonbin.io/v3/b/69c0bc08c3097a1dd54e0c8e/latest";
 const DATA_BIN_ID = "69c0bad7aa77b81da90d19d1";
 const DATA_READ_KEY = "$2a\$10\$mMG.n8IZXlBo9U7BSKXBS.vLFE3mZdiyGLNcZFXifzFjYjODHUNWG";
-const DATA_WRITE_KEY = "$2a\$10\$tc3oJwK1IhFAogTnLt/jquHPC0ZZWzOCTFtSo/Ap0JWHbLfrTQwGi";
+const DATA_WRITE_KEY = "$2a\$10\$u3gjw.oCyflPl5ZO/cmawOo5HF5uOR/DmHpo62P4.ipzAt9zcWf0u";
 // =================================================
 
 const SK = "ledger_fish_v2";
@@ -126,7 +126,14 @@ const applyDueFixed = (fixedItems, existing) => {
 };
 
 let cachedApiKey = null;
-const getApiKey = async () => { if (cachedApiKey) return cachedApiKey; const config = await CloudService.getConfig(); cachedApiKey = config?.apiKey || ""; return cachedApiKey; };
+const getApiKey = async () => {
+  if (cachedApiKey) return cachedApiKey;
+  // 优先从本地存储获取
+  const localKey = localStorage.getItem("or_api_key");
+  if (localKey) { cachedApiKey = localKey; return localKey; }
+  return "";
+};
+const setApiKey = (key) => { localStorage.setItem("or_api_key", key); cachedApiKey = key; };
 
 const callAI = async (messages) => {
   const API_KEY = await getApiKey(); if (!API_KEY) throw new Error("no_key");
@@ -139,15 +146,15 @@ const callAI = async (messages) => {
   return d.choices?.[0]?.message?.content?.trim() || "";
 };
 
-function SettingsModal({ onClose, onSync, syncStatus }) {
+function SettingsModal({ onClose, onSync, syncStatus, apiKey, onSaveApiKey }) {
   const G = "#1a9e6e";
+  const [keyInput, setKeyInput] = useState(apiKey || "");
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",zIndex:300,display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
       <div style={{background:"#fff",borderRadius:"20px 20px 0 0",width:"100%",maxWidth:480,padding:"24px 20px 40px"}}>
         <div style={{width:36,height:4,background:"#e0e0e0",borderRadius:2,margin:"0 auto 16px"}}/>
         <div style={{fontSize:16,fontWeight:700,marginBottom:6}}>⚙️ 设置</div>
-        <div style={{fontSize:12,color:"#aaa",marginBottom:20}}>云端同步与配置</div>
-        <div style={{background:"#f7f8fa",borderRadius:12,padding:"16px",marginBottom:16}}>
+        <div style={{background:"#f7f8fa",borderRadius:12,padding:"16px",marginBottom:12}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
             <div>
               <div style={{fontSize:14,fontWeight:600}}>☁️ 云端同步</div>
@@ -158,11 +165,15 @@ function SettingsModal({ onClose, onSync, syncStatus }) {
               {syncStatus === 'syncing' ? '同步中...' : syncStatus === 'success' ? '✓ 已同步' : syncStatus === 'error' ? '✗ 失败' : '立即同步'}
             </button>
           </div>
-          <div style={{fontSize:11,color:"#aaa",lineHeight:1.6}}>账本数据会自动同步到云端，不同设备访问同一链接即可看到相同数据。</div>
         </div>
         <div style={{background:"#f7f8fa",borderRadius:12,padding:"16px",marginBottom:20}}>
-          <div style={{fontSize:14,fontWeight:600,marginBottom:8}}>🔑 API 配置</div>
-          <div style={{fontSize:12,color:"#888",lineHeight:1.6}}>AI 功能所需的 API Key 已从云端安全加载，无需手动配置。</div>
+          <div style={{fontSize:14,fontWeight:600,marginBottom:8}}>🔑 OpenRouter API Key</div>
+          <input type="password" value={keyInput} onChange={e=>setKeyInput(e.target.value)} placeholder="sk-or-v1-..." style={{width:"100%",padding:"10px 12px",border:"1px solid #ddd",borderRadius:8,fontSize:13,boxSizing:"border-box",marginBottom:8}}/>
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={()=>{onSaveApiKey(keyInput);onClose();}} style={{flex:1,padding:"8px",borderRadius:8,border:"none",background:G,color:"#fff",fontSize:13,cursor:"pointer"}}>保存</button>
+            {apiKey && <button onClick={()=>{onSaveApiKey("");setKeyInput("");onClose();}} style={{flex:1,padding:"8px",borderRadius:8,border:"1px solid #ddd",background:"#fff",color:"#888",fontSize:13,cursor:"pointer"}}>清除</button>}
+          </div>
+          <div style={{fontSize:11,color:"#aaa",marginTop:8,lineHeight:1.5}}>用于 AI 记账功能，可从 <a href="https://openrouter.ai/keys" target="_blank" style={{color:G}}>openrouter.ai</a> 获取</div>
         </div>
         <button onClick={onClose} style={{width:"100%",padding:"13px",borderRadius:12,border:"none",background:G,color:"#fff",fontSize:15,fontWeight:600,cursor:"pointer"}}>关闭</button>
       </div>
@@ -223,6 +234,11 @@ function App() {
   const [statsMonth, setStatsMonth] = useState(curM);
   const [hideAmount, setHideAmount] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [apiKey, setApiKeyState] = useState("");
+  
+  useEffect(() => { setApiKeyState(localStorage.getItem("or_api_key") || ""); }, []);
+  
+  const handleSaveApiKey = (key) => { setApiKey(key); localStorage.setItem("or_api_key", key); cachedApiKey = key; setApiKeyState(key); };
   const [aiInput, setAiInput] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [imgPreview, setImgPreview] = useState(null);
@@ -396,7 +412,7 @@ function App() {
 
   return (
     <div style={{ maxWidth: 480, margin: "0 auto", background: "#f7f8fa", minHeight: "100vh" }}>
-      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} onSync={handleManualSync} syncStatus={syncStatus} />}
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} onSync={handleManualSync} syncStatus={syncStatus} apiKey={apiKey} onSaveApiKey={handleSaveApiKey} />}
       {toast && <div style={{ position: "fixed", top: 56, left: "50%", transform: "translateX(-50%)", background: toast.type === "error" ? "#E24B4A" : toast.type === "info" ? "#888" : G, color: "#fff", padding: "9px 20px", borderRadius: 20, fontSize: 13, fontWeight: 500, zIndex: 999, whiteSpace: "nowrap", boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }}>{toast.msg}</div>}
       {tab === "home" && <>
         <div style={{ background: `linear-gradient(135deg,${G} 0%,#0e7a52 100%)`, padding: "48px 20px 28px", borderRadius: "0 0 28px 28px" }}>
