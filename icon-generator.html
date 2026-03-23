@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>生成小鱼儿账本图标</title>
+  <style>
+    body { margin: 20px; font-family: sans-serif; }
+    canvas { border: 1px solid #ddd; margin: 10px; }
+    .preview { display: inline-block; text-align: center; }
+  </style>
+</head>
+<body>
+  <h2>小鱼儿账本图标生成器</h2>
+  <div id="container"></div>
+  <script>
+    const sizes = [72, 96, 128, 144, 152, 192, 384, 512];
+    
+    function drawIcon(canvas, size) {
+      const ctx = canvas.getContext('2d');
+      const center = size / 2;
+      const scale = size / 512;
+      
+      // 背景 - 圆角矩形
+      ctx.fillStyle = '#1a9e6e';
+      ctx.beginPath();
+      ctx.roundRect(0, 0, size, size, size * 0.18);
+      ctx.fill();
+      
+      // 渐变效果
+      const gradient = ctx.createLinearGradient(0, 0, size, size);
+      gradient.addColorStop(0, '#1a9e6e');
+      gradient.addColorStop(1, '#0e7a52');
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.roundRect(0, 0, size, size, size * 0.18);
+      ctx.fill();
+      
+      // 小鱼身体（椭圆）
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.ellipse(center - size * 0.05, center, size * 0.22, size * 0.15, 0, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // 小鱼尾巴
+      ctx.beginPath();
+      ctx.moveTo(center - size * 0.22, center);
+      ctx.lineTo(center - size * 0.35, center - size * 0.12);
+      ctx.lineTo(center - size * 0.35, center + size * 0.12);
+      ctx.closePath();
+      ctx.fill();
+      
+      // 小鱼眼睛
+      ctx.fillStyle = '#1a9e6e';
+      ctx.beginPath();
+      ctx.arc(center + size * 0.08, center - size * 0.03, size * 0.04, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // 小鱼眼睛高光
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(center + size * 0.09, center - size * 0.04, size * 0.015, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // 账本/钱币元素 - 圆形硬币
+      ctx.fillStyle = '#FF6B35';
+      ctx.beginPath();
+      ctx.arc(center + size * 0.18, center + size * 0.18, size * 0.12, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // 硬币边框
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = size * 0.02;
+      ctx.beginPath();
+      ctx.arc(center + size * 0.18, center + size * 0.18, size * 0.12, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      // ¥ 符号
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `bold ${size * 0.12}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('¥', center + size * 0.18, center + size * 0.19);
+      
+      // 气泡装饰
+      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      ctx.beginPath();
+      ctx.arc(center + size * 0.25, center - size * 0.15, size * 0.04, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.beginPath();
+      ctx.arc(center + size * 0.32, center - size * 0.22, size * 0.025, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    
+    function downloadCanvas(canvas, filename) {
+      const link = document.createElement('a');
+      link.download = filename;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+    
+    const container = document.getElementById('container');
+    
+    sizes.forEach(size => {
+      const div = document.createElement('div');
+      div.className = 'preview';
+      
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      
+      drawIcon(canvas, size);
+      
+      const label = document.createElement('div');
+      label.textContent = `${size}x${size}`;
+      
+      const btn = document.createElement('button');
+      btn.textContent = '下载';
+      btn.onclick = () => downloadCanvas(canvas, `icon-${size}x${size}.png`);
+      
+      div.appendChild(canvas);
+      div.appendChild(label);
+      div.appendChild(btn);
+      container.appendChild(div);
+    });
+    
+    // 批量下载按钮
+    const batchBtn = document.createElement('button');
+    batchBtn.textContent = '批量下载所有图标';
+    batchBtn.style.cssText = 'display:block;margin:20px;padding:10px 20px;font-size:16px;';
+    batchBtn.onclick = () => {
+      sizes.forEach((size, i) => {
+        setTimeout(() => {
+          const canvas = document.querySelectorAll('canvas')[i];
+          downloadCanvas(canvas, `icon-${size}x${size}.png`);
+        }, i * 200);
+      });
+    };
+    container.insertBefore(batchBtn, container.firstChild);
+  </script>
+</body>
+</html>
