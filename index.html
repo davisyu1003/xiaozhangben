@@ -128,12 +128,17 @@ const applyDueFixed = (fixedItems, existing) => {
 let cachedApiKey = null;
 const getApiKey = async () => {
   if (cachedApiKey) return cachedApiKey;
-  // 优先从本地存储获取
-  const localKey = localStorage.getItem("or_api_key");
-  if (localKey) { cachedApiKey = localKey; return localKey; }
+  // 从云端配置 Bin 获取 API Key
+  try {
+    const response = await fetch(CONFIG_URL, { headers: { 'X-Access-Key': DATA_WRITE_KEY } });
+    if (response.ok) {
+      const data = await response.json();
+      cachedApiKey = data.record?.apiKey || "";
+      return cachedApiKey;
+    }
+  } catch (e) { console.error('获取 API Key 失败:', e); }
   return "";
 };
-const setApiKey = (key) => { localStorage.setItem("or_api_key", key); cachedApiKey = key; };
 
 const callAI = async (messages) => {
   const API_KEY = await getApiKey(); if (!API_KEY) throw new Error("no_key");
