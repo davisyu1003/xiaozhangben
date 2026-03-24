@@ -161,9 +161,30 @@ const callAI = async (messages) => {
 function SettingsModal({ onClose, onSync, syncStatus, apiKey, onSaveApiKey }) {
   const G = "#1a9e6e";
   const [keyInput, setKeyInput] = useState(apiKey || "");
+  const [incomeConfigs, setIncomeConfigs] = useState(() => JSON.parse(localStorage.getItem("income_configs") || "[]"));
+  const [showIncomeForm, setShowIncomeForm] = useState(false);
+  const [incomeForm, setIncomeForm] = useState({ startDate: "", endDate: "", amount: "" });
+
+  const saveIncomeConfigs = (configs) => {
+    setIncomeConfigs(configs);
+    localStorage.setItem("income_configs", JSON.stringify(configs));
+  };
+
+  const addIncomeConfig = () => {
+    if (!incomeForm.startDate || !incomeForm.endDate || !incomeForm.amount) return;
+    const newConfigs = [...incomeConfigs, { id: Date.now(), ...incomeForm }];
+    saveIncomeConfigs(newConfigs);
+    setIncomeForm({ startDate: "", endDate: "", amount: "" });
+    setShowIncomeForm(false);
+  };
+
+  const deleteIncomeConfig = (id) => {
+    saveIncomeConfigs(incomeConfigs.filter(c => c.id !== id));
+  };
+
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",zIndex:300,display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
-      <div style={{background:"#fff",borderRadius:"20px 20px 0 0",width:"100%",maxWidth:480,padding:"24px 20px 40px"}}>
+      <div style={{background:"#fff",borderRadius:"20px 20px 0 0",width:"100%",maxWidth:480,padding:"24px 20px 40px",maxHeight:"90vh",overflowY:"auto"}}>
         <div style={{width:36,height:4,background:"#e0e0e0",borderRadius:2,margin:"0 auto 16px"}}/>
         <div style={{fontSize:16,fontWeight:700,marginBottom:6}}>⚙️ 设置</div>
         <div style={{background:"#f7f8fa",borderRadius:12,padding:"16px",marginBottom:12}}>
@@ -177,6 +198,40 @@ function SettingsModal({ onClose, onSync, syncStatus, apiKey, onSaveApiKey }) {
               {syncStatus === 'syncing' ? '同步中...' : syncStatus === 'success' ? '✓ 已同步' : syncStatus === 'error' ? '✗ 失败' : '立即同步'}
             </button>
           </div>
+        </div>
+        <div style={{background:"#f7f8fa",borderRadius:12,padding:"16px",marginBottom:12}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+            <div style={{fontSize:14,fontWeight:600}}>💰 收入设置</div>
+            <button onClick={()=>setShowIncomeForm(!showIncomeForm)} style={{ padding:"4px 12px", borderRadius:8, border:"none", background:G, color:"#fff", fontSize:12, cursor:"pointer" }}>+ 添加</button>
+          </div>
+          {showIncomeForm && (
+            <div style={{marginBottom:10,padding:"12px",background:"#fff",borderRadius:8}}>
+              <div style={{marginBottom:8}}>
+                <div style={{fontSize:11,color:"#888",marginBottom:4}}>开始日期</div>
+                <input type="date" value={incomeForm.startDate} onChange={e=>setIncomeForm(f=>({...f,startDate:e.target.value}))} style={{width:"100%",padding:"8px",border:"1px solid #ddd",borderRadius:8,fontSize:13,boxSizing:"border-box"}}/>
+              </div>
+              <div style={{marginBottom:8}}>
+                <div style={{fontSize:11,color:"#888",marginBottom:4}}>结束日期</div>
+                <input type="date" value={incomeForm.endDate} onChange={e=>setIncomeForm(f=>({...f,endDate:e.target.value}))} style={{width:"100%",padding:"8px",border:"1px solid #ddd",borderRadius:8,fontSize:13,boxSizing:"border-box"}}/>
+              </div>
+              <div style={{marginBottom:8}}>
+                <div style={{fontSize:11,color:"#888",marginBottom:4}}>收入金额（万元）</div>
+                <input type="number" value={incomeForm.amount} onChange={e=>setIncomeForm(f=>({...f,amount:e.target.value}))} placeholder="例如 1.2" style={{width:"100%",padding:"8px",border:"1px solid #ddd",borderRadius:8,fontSize:13,boxSizing:"border-box"}}/>
+              </div>
+              <button onClick={addIncomeConfig} style={{width:"100%",padding:"8px",borderRadius:8,border:"none",background:G,color:"#fff",fontSize:13,cursor:"pointer"}}>确认添加</button>
+            </div>
+          )}
+          {incomeConfigs.length === 0 && <div style={{fontSize:12,color:"#aaa"}}>暂无设置</div>}
+          {incomeConfigs.map(cfg => (
+            <div key={cfg.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid #eee"}}>
+              <div>
+                <div style={{fontSize:13,color:"#333"}}>{cfg.startDate} ~ {cfg.endDate}</div>
+                <div style={{fontSize:12,color:G}}>收入 {cfg.amount} 万元</div>
+              </div>
+              <button onClick={()=>deleteIncomeConfig(cfg.id)} style={{padding:"4px 8px",borderRadius:6,border:"1px solid #E24B4A",background:"#fff",color:"#E24B4A",fontSize:11,cursor:"pointer"}}>删除</button>
+            </div>
+          ))}
+          <div style={{fontSize:11,color:"#aaa",marginTop:8,lineHeight:1.5}}>设置时间区间的收入基数，用于计算结余。默认12000元。</div>
         </div>
         <div style={{background:"#f7f8fa",borderRadius:12,padding:"16px",marginBottom:20}}>
           <div style={{fontSize:14,fontWeight:600,marginBottom:8}}>🔑 OpenRouter API Key</div>
@@ -410,7 +465,21 @@ function App() {
   const deleteFixedItem = id => { setFixedItems(prev => prev.filter(f => f.id !== id)); setRecords(prev => prev.filter(r => !(r.fixedId === id && r.isFixed))); showToast("已删除固定支出及其全部账单","info"); setDetailFixed(null); };
   const applyFixedNow = item => { const today = todayStr(); if (records.some(r => r.fixedId === item.id && r.date === today)) { showToast("今天已记过这笔","info"); setDetailFixed(null); return; } addRecords([{ date: today, amount: item.amount, category: item.category, note: item.name, fixedId: item.id, isFixed: true }]); setDetailFixed(null); };
 
-  const income = 12000;
+  // 收入配置：支持多时间段设置
+  const getIncomeForPeriod = () => {
+    const configs = JSON.parse(localStorage.getItem("income_configs") || "[]");
+    const now = new Date();
+    const today = todayStr();
+    for (const cfg of configs) {
+      if (cfg.startDate && cfg.endDate) {
+        if (today >= cfg.startDate && today <= cfg.endDate) {
+          return parseFloat(cfg.amount) * 10000;
+        }
+      }
+    }
+    return 12000; // 默认
+  };
+  const income = getIncomeForPeriod();
   const amt = v => hideAmount ? "¥****" : `¥${v.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const G = "#1a9e6e", OR = "#FF6B35";
   const inp = { width: "100%", boxSizing: "border-box", border: "1px solid #eee", borderRadius: 10, padding: "10px 12px", fontSize: 14, outline: "none", fontFamily: "inherit", background: "#fafafa", color: "#111" };
